@@ -1,0 +1,106 @@
+package BlackJack;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.Socket;
+
+public class GameHandler implements Runnable {
+ private Socket clientSocket;
+ private ObjectOutputStream outputStream;
+ private ObjectInputStream inputStream;
+
+ public GameHandler(Socket clientSocket) {
+     this.clientSocket = clientSocket;
+     try {
+         outputStream = new ObjectOutputStream(clientSocket.getOutputStream());
+         inputStream = new ObjectInputStream(clientSocket.getInputStream());
+     } catch (IOException e) {
+         e.printStackTrace();
+     }
+ }
+
+ @Override
+ public void run() {
+     try {
+         Deck deck = new Deck();
+         Player player = new Player();
+         Player dealer = new Player();
+
+         player.addCard(deck.drawCard());
+         player.addCard(deck.drawCard());
+
+         dealer.addCard(deck.drawCard());
+         dealer.addCard(deck.drawCard());
+
+         sendGameState(player, dealer);
+
+         while (true) {
+             try {
+                 Object clientData = inputStream.readObject();
+                 System.out.println("Received from client: " + clientData);
+
+                 if (clientData instanceof String) {
+                     String action = (String) clientData;
+                     if ("hit".equalsIgnoreCase(action)) {
+                         player.addCard(deck.drawCard());
+                     } else if ("stand".equalsIgnoreCase(action)) {
+                         break;
+                     }
+                 }
+             } catch (IOException | ClassNotFoundException e) {
+                 e.printStackTrace();
+                 break;
+             }
+
+             sendGameState(player, dealer);
+
+             if (player.calculateHandValue() > 21) {
+                 outputStream.writeObject("You busted! You lose.");
+                 outputStream.flush();
+                 break;
+             }
+         }
+
+         while (dealer.calculateHandValue() < 17) {
+             dealer.addCard(deck.drawCard());
+         }
+
+         determineWinner(player, dealer);
+
+     } catch (IOException e) {
+         e.printStackTrace();
+     } finally {
+         try {
+             clientSocket.close();
+         } catch (IOException e) {
+             e.printStackTrace();
+         }
+     }
+ }
+
+ private void sendGameState(Player player, Player dealer) throws IOException {
+     outputStream.writeObject("Your hand: " + player.getHand() +
+             "\nDealer's hand: " + dealer.getHand().get(0) + " [Hidden]");
+     outputStream.flush();
+ }
+
+ private void determineWinner(Player player, Player dealer) throws IOException {
+     int playerValue = player.calculateHandValue();
+     int dealerValue = dealer.calculateHandValue();
+
+     if (playerValue > 21) {
+         outputStream.writeObject("You busted! You lose.");
+     } else if (dealerValue > 21) {
+         outputStream.writeObject("Dealer busted! You win.");
+     } else if (playerValue > dealerValue) {
+         outputStream.writeObject("You win! Dealer loses.");
+     } else if (playerValue < dealerValue) {
+         outputStream.writeObject("Dealer wins! You lose.");
+     } else {
+         outputStream.writeObject("It's a tie! Nobody wins.");
+     }
+
+     outputStream.flush();
+ }
+}

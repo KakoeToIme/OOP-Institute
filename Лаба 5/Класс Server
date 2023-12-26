@@ -1,0 +1,28 @@
+package BlackJack;
+
+//Server.java
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+
+//Ваш класс Server
+public class Server {
+ public static void main(String[] args) {
+     try {
+         ServerSocket serverSocket = new ServerSocket(12347);
+         System.out.println("Server is running and waiting for connections...");
+
+         while (true) {
+             Socket clientSocket = serverSocket.accept();
+             System.out.println("Client connected: " + clientSocket.getInetAddress().getHostAddress());
+
+             GameHandler gameHandler = new GameHandler(clientSocket);
+             
+             Thread thread = new Thread(gameHandler);
+             thread.start();
+         }
+     } catch (IOException e) {
+         e.printStackTrace();
+     }
+ }
+}

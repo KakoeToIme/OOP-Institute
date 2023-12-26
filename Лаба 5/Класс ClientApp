@@ -1,0 +1,56 @@
+package BlackJack;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.Socket;
+import java.net.SocketException;
+import java.util.Scanner;
+
+public class ClientApp {
+ public static void main(String[] args) {
+     try {
+         Socket socket = new Socket("localhost", 12347);
+
+         ObjectInputStream inputStream = new ObjectInputStream(socket.getInputStream());
+         ObjectOutputStream outputStream = new ObjectOutputStream(socket.getOutputStream());
+
+         Scanner scanner = new Scanner(System.in);
+
+         System.out.println("Client connected to server.");
+
+         while (true) {
+             try {
+                 Object serverData = inputStream.readObject();
+                 System.out.println("Received from server: " + serverData);
+
+                 if (serverData instanceof String) {
+                     String message = (String) serverData;
+                     System.out.println("Server message: " + message);
+
+                     if (message.contains("win")) {
+                         System.out.println("Exiting the game.");
+                         break;
+                     } else {
+                    	 System.out.println("Enter your action (hit or stand): ");
+                         String playerAction = scanner.nextLine();
+                         outputStream.writeObject(playerAction);
+                         outputStream.flush();
+                     }
+                 }
+             } catch (SocketException e) {
+                 System.out.println("Connection closed by the server.");
+                 break;
+             } catch (IOException | ClassNotFoundException e) {
+                 e.printStackTrace();
+                 break;
+             }
+         }
+         scanner.close();
+         socket.close();
+
+     } catch (IOException e) {
+         e.printStackTrace();
+     }
+ }
+}
